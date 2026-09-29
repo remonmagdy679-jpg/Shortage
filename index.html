@@ -203,14 +203,63 @@ try { settings = JSON.parse(localStorage.getItem('shortages_settings') || '{}');
 let editId = null;
 let currentPhoto = null;
 
+// الصور بتتحفظ في IndexedDB (مساحة كبيرة) — والبيانات النصية بس في localStorage
+const DB = (() => {
+  let dbp = null;
+  function open() {
+    if (!dbp) dbp = new Promise((res, rej) => {
+      const r = indexedDB.open('shortages_db', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('photos');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    return dbp;
+  }
+  function run(mode, fn) {
+    return open().then(db => new Promise((res, rej) => {
+      const tx = db.transaction('photos', mode);
+      const st = tx.objectStore('photos');
+      const req = fn(st);
+      tx.oncomplete = () => res(req && req.result);
+      tx.onerror = () => rej(tx.error);
+      tx.onabort = () => rej(tx.error);
+    }));
+  }
+  return {
+    get: id => run('readonly', st => st.get(id)),
+    put: (id, v) => run('readwrite', st => st.put(v, id)),
+    del: id => run('readwrite', st => st.delete(id)),
+    clear: () => run('readwrite', st => st.clear())
+  };
+})();
+
 function save() {
   try {
-    localStorage.setItem('shortages_items', JSON.stringify(items));
+    const meta = items.map(({ photo, ...rest }) => ({ ...rest, hasPhoto: !!photo }));
+    localStorage.setItem('shortages_items', JSON.stringify(meta));
     return true;
   } catch (e) {
-    showToast('⚠️ المساحة امتلأت — امسح نواقص قديمة', 'error');
+    showToast('⚠️ مشكلة في الحفظ', 'error');
     return false;
   }
+}
+
+async function init() {
+  // نقل الصور القديمة من localStorage لـ IndexedDB (مرة واحدة)
+  let moved = false;
+  for (const it of items) {
+    if (it.photo) {
+      try { await DB.put(it.id, it.photo); moved = true; } catch (e) {}
+    }
+  }
+  if (moved) save();
+  // تحميل الصور
+  for (const it of items) {
+    if (it.hasPhoto && !it.photo) {
+      try { it.photo = await DB.get(it.id) || null; } catch (e) {}
+    }
+  }
+  render();
 }
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -300,22 +349,27 @@ function saveItem() {
     urgent: document.getElementById('fUrgent').checked,
     photo: currentPhoto
   };
-  const backup = JSON.stringify(items);
-  if (editId) {
-    Object.assign(items.find(x => x.id === editId), data);
-  } else {
-    items.push({ id: genId(), created: Date.now(), ...data });
-  }
-  if (!save()) { items = JSON.parse(backup); return; }
-  closeModal('addModal');
-  render();
-  showToast(editId ? '✅ تم التعديل' : '✅ تمت الإضافة', 'success');
+  const wasEdit = !!editId;
+  const id = editId || genId();
+  const photoJob = data.photo ? DB.put(id, data.photo) : DB.del(id);
+  photoJob.then(() => {
+    if (wasEdit) {
+      Object.assign(items.find(x => x.id === id), data);
+    } else {
+      items.push({ id, created: Date.now(), ...data });
+    }
+    save();
+    closeModal('addModal');
+    render();
+    showToast(wasEdit ? '✅ تم التعديل' : '✅ تمت الإضافة', 'success');
+  }).catch(() => showToast('⚠️ الصورة ما اتحفظتش — جرب تاني', 'error'));
 }
 
 function removeItem(id) {
   const it = items.find(x => x.id === id);
   if (!confirm(`حذف "${it.name}"؟`)) return;
   items = items.filter(x => x.id !== id);
+  DB.del(id).catch(() => {});
   save(); render();
   showToast('تم الحذف', 'error');
 }
@@ -324,6 +378,7 @@ function clearAll() {
   if (!items.length) return;
   if (!confirm('مسح كل النواقص؟ (اعملها بعد ما تبعت التقرير)')) return;
   items = [];
+  DB.clear().catch(() => {});
   save(); render();
   showToast('تم مسح القايمة', 'error');
 }
@@ -337,7 +392,7 @@ function handleFile(e) {
   reader.onload = ev => {
     const img = new Image();
     img.onload = () => {
-      const max = 900;
+      const max = 800;
       let w = img.width, h = img.height;
       if (w > max || h > max) {
         if (w > h) { h = Math.round(h * max / w); w = max; }
@@ -346,7 +401,7 @@ function handleFile(e) {
       const c = document.createElement('canvas');
       c.width = w; c.height = h;
       c.getContext('2d').drawImage(img, 0, 0, w, h);
-      setPhoto(c.toDataURL('image/jpeg', 0.68));
+      setPhoto(c.toDataURL('image/jpeg', 0.6));
     };
     img.onerror = () => showToast('الصورة مش مدعومة', 'error');
     img.src = ev.target.result;
@@ -508,6 +563,7 @@ function showToast(msg, type = '') {
 }
 
 render();
+init();
 </script>
 </body>
 </html>
