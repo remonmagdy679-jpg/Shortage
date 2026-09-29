@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نواقص الصيدلية</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0d1117; --card: #161b22; --card2: #1c2230; --border: #30363d;
+    --accent: #2ec4a6; --accent2: #1f8f7a;
+    --green: #3fb950; --red: #f85149; --blue: #58a6ff; --orange: #f0a500;
+    --text: #e6edf3; --muted: #8b949e;
+  }
+  body { font-family: 'Cairo', Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; padding-bottom: 90px; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+
+  header { text-align: center; padding: 20px 0 16px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+  header h1 { font-size: 1.8rem; font-weight: 900; color: var(--accent); }
+  header p { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+
+  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+  .sum { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; }
+  .sum .label { font-size: 0.8rem; color: var(--muted); }
+  .sum .value { font-size: 1.5rem; font-weight: 700; }
+  .sum.urgent .value { color: var(--red); }
+  .sum.photos .value { color: var(--blue); }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .btn { font-family: inherit; font-size: 0.95rem; font-weight: 600; border: none; border-radius: 10px; padding: 11px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; justify-content: center; }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn-primary { background: var(--accent); color: #04221c; }
+  .btn-success { background: var(--green); color: #000; }
+  .btn-wa { background: #25d366; color: #000; }
+  .btn-ghost { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+  .btn-danger { background: rgba(248,81,73,0.12); color: var(--red); border: 1px solid rgba(248,81,73,0.4); }
+  .btn-big { flex: 1 1 100%; font-size: 1.1rem; padding: 14px; }
+
+  .list { display: flex; flex-direction: column; gap: 10px; }
+  .item { display: flex; gap: 12px; align-items: center; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px; }
+  .item.is-urgent { border-color: rgba(248,81,73,0.6); }
+  .thumb { width: 70px; height: 70px; border-radius: 8px; object-fit: cover; flex-shrink: 0; cursor: zoom-in; background: var(--card2); }
+  .thumb-empty { width: 70px; height: 70px; border-radius: 8px; background: var(--card2); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; flex-shrink: 0; color: var(--muted); }
+  .info { flex: 1; min-width: 0; }
+  .info .name { font-weight: 700; font-size: 1.05rem; word-break: break-word; }
+  .info .meta { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
+  .info .note { font-size: 0.85rem; margin-top: 3px; word-break: break-word; }
+  .badge { display: inline-block; background: var(--red); color: #fff; font-size: 0.72rem; border-radius: 6px; padding: 1px 7px; margin-inline-start: 6px; vertical-align: middle; }
+  .qty { color: var(--accent); font-weight: 700; }
+  .stock { font-weight: 700; color: var(--orange); }
+  .stock.zero { color: var(--red); }
+  .zero-btn { margin-top: 6px; padding: 5px 10px; font-size: 0.8rem; width: 100%; }
+  .item-actions { display: flex; flex-direction: column; gap: 6px; }
+  .item-actions .btn { padding: 7px 10px; font-size: 0.9rem; }
+
+  .empty { text-align: center; color: var(--muted); padding: 50px 10px; background: var(--card); border: 1px dashed var(--border); border-radius: 12px; }
+  .empty .icon { font-size: 2.5rem; margin-bottom: 8px; }
+
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 1000; align-items: center; justify-content: center; padding: 12px; }
+  .overlay.active { display: flex; }
+  .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 22px; width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto; }
+  .modal h2 { font-size: 1.2rem; color: var(--accent); margin-bottom: 16px; }
+  .fg { margin-bottom: 14px; }
+  .fg label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 5px; }
+  .fg input[type=text], .fg input[type=number], .fg input[type=tel] { width: 100%; background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 11px 12px; color: var(--text); font-family: inherit; font-size: 1rem; outline: none; }
+  .fg input:focus { border-color: var(--accent); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; color: var(--red); padding: 8px 0; }
+  .check input { width: 20px; height: 20px; accent-color: var(--red); }
+  .photo-btns { display: flex; gap: 8px; }
+  .photo-btns .btn { flex: 1; }
+  #photoPreviewBox { display: none; position: relative; margin-top: 10px; }
+  #photoPreview { width: 100%; max-height: 240px; object-fit: contain; border-radius: 10px; background: #000; }
+  #removePhoto { position: absolute; top: 8px; left: 8px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+  .lightbox img { max-width: 100%; max-height: 90vh; border-radius: 10px; }
+
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(120px); background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; font-size: 0.9rem; z-index: 9999; transition: transform 0.3s; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--green); color: var(--green); }
+  .toast.error { border-color: var(--red); color: var(--red); }
+
+  @media (max-width: 480px) {
+    body { padding: 12px; padding-bottom: 90px; }
+    .actions .btn:not(.btn-big) { flex: 1 1 calc(50% - 8px); }
+  }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>💊 نواقص الصيدلية</h1>
+  <p id="subTitle"></p>
+</header>
+
+<div class="summary">
+  <div class="sum"><div class="label">عدد النواقص</div><div class="value" id="sCount">0</div></div>
+  <div class="sum urgent"><div class="label">🔴 عاجل</div><div class="value" id="sUrgent">0</div></div>
+  <div class="sum photos"><div class="label">📷 بصورة</div><div class="value" id="sPhotos">0</div></div>
+</div>
+
+<div class="actions">
+  <button class="btn btn-primary btn-big" onclick="openAdd()">➕ إضافة نقص</button>
+  <button class="btn btn-success" onclick="exportPDF()">📄 تقرير PDF</button>
+  <button class="btn btn-wa" onclick="sendWhatsApp()">💬 واتساب</button>
+  <button class="btn btn-ghost" onclick="openSettings()">⚙️ الإعدادات</button>
+  <button class="btn btn-danger" onclick="clearAll()">🧹 مسح القايمة</button>
+</div>
+
+<div class="list" id="list"></div>
+
+</div>
+
+<!-- Add / Edit -->
+<div class="overlay" id="addModal">
+  <div class="modal">
+    <h2 id="addTitle">➕ إضافة نقص</h2>
+
+    <div class="fg">
+      <label>صورة المنتج (اختياري)</label>
+      <div class="photo-btns">
+        <button class="btn btn-ghost" onclick="document.getElementById('camIn').click()">📷 كاميرا</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('galIn').click()">🖼️ جاليري</button>
+      </div>
+      <div id="photoPreviewBox">
+        <img id="photoPreview" alt="صورة المنتج">
+        <button class="btn btn-danger" id="removePhoto" onclick="setPhoto(null)">✕</button>
+      </div>
+    </div>
+
+    <div class="fg">
+      <label>اسم المنتج *</label>
+      <input type="text" id="fName" placeholder="مثال: Panadol Extra 24 tab" autocomplete="off">
+    </div>
+    <div class="row2">
+      <div class="fg">
+        <label>📦 الموجود عندي</label>
+        <input type="text" id="fStock" placeholder="مثال: 2 علبة" autocomplete="off">
+        <button type="button" class="btn btn-ghost zero-btn" onclick="document.getElementById('fStock').value='0'">خلصان (0)</button>
+      </div>
+      <div class="fg">
+        <label>الكمية المقترحة</label>
+        <input type="text" id="fQty" placeholder="اختياري" autocomplete="off">
+      </div>
+    </div>
+    <div class="fg">
+      <label>ملاحظة</label>
+      <input type="text" id="fNote" placeholder="اختياري" autocomplete="off">
+    </div>
+    <label class="check"><input type="checkbox" id="fUrgent"> 🔴 عاجل</label>
+
+    <div class="modal-actions">
+      <button class="btn btn-primary" style="flex:1" onclick="saveItem()">💾 حفظ</button>
+      <button class="btn btn-ghost" onclick="closeModal('addModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div class="overlay" id="setModal">
+  <div class="modal">
+    <h2>⚙️ الإعدادات</h2>
+    <div class="fg">
+      <label>اسم الصيدلية</label>
+      <input type="text" id="setPharmacy" placeholder="مثال: صيدلية الريزورت" autocomplete="off">
+    </div>
+    <div class="fg">
+      <label>اسمك (بيظهر في التقرير)</label>
+      <input type="text" id="setUser" autocomplete="off">
+    </div>
+    <div class="fg">
+      <label>رقم واتساب المدير (اختياري — بكود الدولة)</label>
+      <input type="tel" id="setPhone" placeholder="مثال: 201012345678" dir="ltr" autocomplete="off">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" style="flex:1" onclick="saveSettings()">💾 حفظ</button>
+      <button class="btn btn-ghost" onclick="closeModal('setModal')">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="overlay lightbox" id="lightbox" onclick="closeModal('lightbox')">
+  <img id="lightImg" alt="">
+</div>
+
+<input type="file" id="camIn" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="galIn" accept="image/*" style="display:none">
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== DATA =====
+let items = [];
+try { items = JSON.parse(localStorage.getItem('shortages_items') || '[]'); } catch (e) { items = []; }
+let settings = {};
+try { settings = JSON.parse(localStorage.getItem('shortages_settings') || '{}'); } catch (e) { settings = {}; }
+
+let editId = null;
+let currentPhoto = null;
+
+function save() {
+  try {
+    localStorage.setItem('shortages_items', JSON.stringify(items));
+    return true;
+  } catch (e) {
+    showToast('⚠️ المساحة امتلأت — امسح نواقص قديمة', 'error');
+    return false;
+  }
+}
+
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function todayStr() {
+  return new Date().toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function shortDate(ts) {
+  return new Date(ts).toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' });
+}
+
+function isZero(v) { return /^\s*(0|٠|صفر|خلصان)\s*$/.test(v || ''); }
+function stockLabel(v) { return isZero(v) ? 'خلصان (0)' : v; }
+
+function sorted() {
+  return [...items].sort((a, b) => (b.urgent - a.urgent) || (a.created - b.created));
+}
+
+// ===== RENDER =====
+function render() {
+  document.getElementById('subTitle').textContent = (settings.pharmacy ? settings.pharmacy + ' — ' : '') + todayStr();
+  document.getElementById('sCount').textContent = items.length;
+  document.getElementById('sUrgent').textContent = items.filter(i => i.urgent).length;
+  document.getElementById('sPhotos').textContent = items.filter(i => i.photo).length;
+
+  const list = document.getElementById('list');
+  if (!items.length) {
+    list.innerHTML = `<div class="empty"><div class="icon">✅</div><p>مفيش نواقص مسجلة</p><p style="font-size:0.85rem;margin-top:4px">دوس "إضافة نقص" وابدأ</p></div>`;
+    return;
+  }
+  list.innerHTML = sorted().map(i => `
+    <div class="item ${i.urgent ? 'is-urgent' : ''}">
+      ${i.photo
+        ? `<img class="thumb" src="${i.photo}" alt="${esc(i.name)}" onclick="openImg('${i.id}')">`
+        : `<div class="thumb-empty">💊</div>`}
+      <div class="info">
+        <div class="name">${esc(i.name)}${i.urgent ? '<span class="badge">عاجل</span>' : ''}</div>
+        <div class="meta">${i.stock ? `📦 عندي: <span class="stock ${isZero(i.stock) ? 'zero' : ''}">${esc(stockLabel(i.stock))}</span> • ` : ''}${i.qty ? `مقترح: <span class="qty">${esc(i.qty)}</span> • ` : ''}${shortDate(i.created)}</div>
+        ${i.note ? `<div class="note">📝 ${esc(i.note)}</div>` : ''}
+      </div>
+      <div class="item-actions">
+        <button class="btn btn-ghost" onclick="openAdd('${i.id}')" aria-label="تعديل">✏️</button>
+        <button class="btn btn-danger" onclick="removeItem('${i.id}')" aria-label="حذف">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+// ===== ADD / EDIT =====
+function openAdd(id = null) {
+  editId = id;
+  const it = id ? items.find(x => x.id === id) : null;
+  document.getElementById('addTitle').textContent = it ? '✏️ تعديل نقص' : '➕ إضافة نقص';
+  document.getElementById('fName').value = it?.name || '';
+  document.getElementById('fStock').value = it?.stock || '';
+  document.getElementById('fQty').value = it?.qty || '';
+  document.getElementById('fNote').value = it?.note || '';
+  document.getElementById('fUrgent').checked = !!it?.urgent;
+  setPhoto(it?.photo || null);
+  document.getElementById('addModal').classList.add('active');
+  if (!it) setTimeout(() => document.getElementById('fName').focus(), 80);
+}
+
+function setPhoto(data) {
+  currentPhoto = data;
+  const box = document.getElementById('photoPreviewBox');
+  if (data) {
+    document.getElementById('photoPreview').src = data;
+    box.style.display = 'block';
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+function saveItem() {
+  const name = document.getElementById('fName').value.trim();
+  if (!name) { showToast('اكتب اسم المنتج', 'error'); document.getElementById('fName').focus(); return; }
+  const data = {
+    name,
+    stock: document.getElementById('fStock').value.trim(),
+    qty: document.getElementById('fQty').value.trim(),
+    note: document.getElementById('fNote').value.trim(),
+    urgent: document.getElementById('fUrgent').checked,
+    photo: currentPhoto
+  };
+  const backup = JSON.stringify(items);
+  if (editId) {
+    Object.assign(items.find(x => x.id === editId), data);
+  } else {
+    items.push({ id: genId(), created: Date.now(), ...data });
+  }
+  if (!save()) { items = JSON.parse(backup); return; }
+  closeModal('addModal');
+  render();
+  showToast(editId ? '✅ تم التعديل' : '✅ تمت الإضافة', 'success');
+}
+
+function removeItem(id) {
+  const it = items.find(x => x.id === id);
+  if (!confirm(`حذف "${it.name}"؟`)) return;
+  items = items.filter(x => x.id !== id);
+  save(); render();
+  showToast('تم الحذف', 'error');
+}
+
+function clearAll() {
+  if (!items.length) return;
+  if (!confirm('مسح كل النواقص؟ (اعملها بعد ما تبعت التقرير)')) return;
+  items = [];
+  save(); render();
+  showToast('تم مسح القايمة', 'error');
+}
+
+// ===== PHOTO (compressed to save space) =====
+function handleFile(e) {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 900;
+      let w = img.width, h = img.height;
+      if (w > max || h > max) {
+        if (w > h) { h = Math.round(h * max / w); w = max; }
+        else { w = Math.round(w * max / h); h = max; }
+      }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      setPhoto(c.toDataURL('image/jpeg', 0.68));
+    };
+    img.onerror = () => showToast('الصورة مش مدعومة', 'error');
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+document.getElementById('camIn').addEventListener('change', handleFile);
+document.getElementById('galIn').addEventListener('change', handleFile);
+
+function openImg(id) {
+  const it = items.find(x => x.id === id);
+  document.getElementById('lightImg').src = it.photo;
+  document.getElementById('lightbox').classList.add('active');
+}
+
+// ===== SETTINGS =====
+function openSettings() {
+  document.getElementById('setPharmacy').value = settings.pharmacy || '';
+  document.getElementById('setUser').value = settings.user || '';
+  document.getElementById('setPhone').value = settings.phone || '';
+  document.getElementById('setModal').classList.add('active');
+}
+
+function saveSettings() {
+  settings = {
+    pharmacy: document.getElementById('setPharmacy').value.trim(),
+    user: document.getElementById('setUser').value.trim(),
+    phone: document.getElementById('setPhone').value.replace(/\D/g, '')
+  };
+  localStorage.setItem('shortages_settings', JSON.stringify(settings));
+  closeModal('setModal');
+  render();
+  showToast('✅ تم الحفظ', 'success');
+}
+
+// ===== WHATSAPP (text list) =====
+function sendWhatsApp() {
+  if (!items.length) { showToast('مفيش نواقص تتبعت', 'error'); return; }
+  let msg = `💊 *نواقص ${settings.pharmacy || 'الصيدلية'}*\n📅 ${todayStr()}\n\n`;
+  sorted().forEach((i, n) => {
+    msg += `${n + 1}. ${i.urgent ? '🔴 ' : ''}${i.name}\n`;
+    if (i.stock) msg += `   📦 عندي: ${stockLabel(i.stock)}\n`;
+    if (i.qty) msg += `   مقترح: ${i.qty}\n`;
+    if (i.note) msg += `   📝 ${i.note}\n`;
+  });
+  msg += `\nالإجمالي: ${items.length} صنف — القرار ليك في الطلب 🙏`;
+  if (settings.user) msg += `\nمن: ${settings.user}`;
+  const url = `https://wa.me/${settings.phone || ''}?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+}
+
+// ===== PDF REPORT =====
+function exportPDF() {
+  if (!items.length) { showToast('مفيش نواقص للتقرير', 'error'); return; }
+  const list = sorted();
+  const withPhotos = list.map((it, idx) => ({ it, n: idx + 1 })).filter(x => x.it.photo);
+  const title = `نواقص ${settings.pharmacy || 'الصيدلية'}`;
+
+  const rows = list.map((i, idx) => `
+    <tr class="${i.urgent ? 'urg' : ''}">
+      <td class="num">${idx + 1}</td>
+      <td class="pic">${i.photo ? `<a href="#img${idx + 1}"><img src="${i.photo}"></a><div class="tap">اضغط للتكبير</div>` : '<span class="nopic">—</span>'}</td>
+      <td><strong>${esc(i.name)}</strong>${i.urgent ? ' <span class="badge">عاجل</span>' : ''}</td>
+      <td class="stk ${isZero(i.stock) ? 'z' : ''}">${esc(stockLabel(i.stock)) || '—'}</td>
+      <td>${esc(i.qty) || '—'}</td>
+      <td>${esc(i.note) || '—'}</td>
+      <td class="dec">☐ يُطلب<br>☐ لا<br><span class="line">الكمية: ........</span></td>
+    </tr>`).join('');
+
+  const gallery = withPhotos.length ? `
+    <h2 class="gal-title">📷 صور المنتجات بالحجم الكامل</h2>
+    ${withPhotos.map(x => `
+      <div class="big" id="img${x.n}">
+        <div class="cap">${x.n}. ${esc(x.it.name)}${x.it.stock ? ' — الموجود: ' + esc(stockLabel(x.it.stock)) : ''}</div>
+        <img src="${x.it.photo}">
+        <a class="back" href="#top">⬆️ رجوع للقايمة</a>
+      </div>`).join('')}` : '';
+
+  const w = window.open('', '_blank');
+  if (!w) { showToast('اسمح بفتح النوافذ المنبثقة', 'error'); return; }
+  w.document.write(`<!DOCTYPE html>
+<html dir="rtl" lang="ar"><head><meta charset="UTF-8">
+<title>${esc(title)} - ${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Cairo', Arial, sans-serif; padding:28px; color:#1a1a2e; font-size:16px; }
+  .header { text-align:center; border-bottom:3px solid #1f8f7a; padding-bottom:16px; margin-bottom:20px; }
+  .header h1 { font-size:28px; font-weight:900; }
+  .header p { color:#555; margin-top:4px; }
+  .sum { display:flex; gap:12px; margin-bottom:20px; }
+  .sum div { flex:1; border:1px solid #ddd; border-radius:10px; padding:10px; text-align:center; }
+  .sum b { display:block; font-size:24px; }
+  .sum .r b { color:#dc2626; }
+  table { width:100%; border-collapse:collapse; }
+  th { background:#1f8f7a; color:#fff; padding:10px; text-align:right; }
+  td { padding:10px; border-bottom:1px solid #eee; vertical-align:middle; }
+  tr { page-break-inside:avoid; }
+  tr.urg { background:#fef2f2; }
+  .num { width:40px; font-weight:700; }
+  .pic { width:105px; text-align:center; }
+  .pic img { width:90px; height:90px; object-fit:cover; border-radius:8px; border:1px solid #ddd; }
+  .tap { font-size:11px; color:#1f8f7a; }
+  .nopic { color:#bbb; }
+  .stk { font-weight:700; color:#b45309; font-size:17px; }
+  .stk.z { color:#dc2626; }
+  .dec { width:110px; font-size:14px; line-height:1.9; white-space:nowrap; }
+  .dec .line { color:#999; font-size:12px; }
+  .badge { background:#dc2626; color:#fff; font-size:12px; border-radius:5px; padding:1px 6px; }
+  a { color:inherit; text-decoration:none; }
+  .gal-title { page-break-before:always; font-size:22px; margin-bottom:16px; color:#1f8f7a; }
+  .big { page-break-inside:avoid; margin-bottom:26px; text-align:center; border:1px solid #eee; border-radius:12px; padding:14px; }
+  .big .cap { font-weight:700; font-size:18px; margin-bottom:10px; }
+  .big img { max-width:100%; max-height:560px; border-radius:8px; }
+  .big .back { display:block; margin-top:8px; font-size:13px; color:#1f8f7a; }
+  .footer { margin-top:24px; text-align:center; color:#999; font-size:13px; border-top:1px solid #eee; padding-top:12px; }
+  @media print { body { padding:12px; } }
+</style></head>
+<body>
+<div class="header" id="top">
+  <h1>💊 ${esc(title)}</h1>
+  <p>${todayStr()}${settings.user ? ' — مقدم من: ' + esc(settings.user) : ''}</p>
+</div>
+<div class="sum">
+  <div>عدد الأصناف<b>${list.length}</b></div>
+  <div class="r">خلصان خالص<b>${list.filter(i => isZero(i.stock)).length}</b></div>
+  <div class="r">عاجل<b>${list.filter(i => i.urgent).length}</b></div>
+  <div>بصورة<b>${withPhotos.length}</b></div>
+</div>
+<table>
+  <thead><tr><th>#</th><th>الصورة</th><th>المنتج</th><th>📦 الموجود</th><th>مقترح</th><th>ملاحظات</th><th>قرار المدير</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+${gallery}
+<div class="footer">تم إنشاء التقرير: ${new Date().toLocaleString('ar-EG')}</div>
+<script>
+  window.onload = () => setTimeout(() => window.print(), 400);
+<\/script>
+</body></html>`);
+  w.document.close();
+}
+
+// ===== UI =====
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+document.querySelectorAll('.overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('active'); });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.overlay.active').forEach(o => o.classList.remove('active'));
+  if (e.key === 'Enter' && document.getElementById('addModal').classList.contains('active') && e.target.tagName === 'INPUT') saveItem();
+});
+
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+render();
+</script>
+</body>
+</html>
